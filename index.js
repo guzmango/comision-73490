@@ -34,14 +34,14 @@ const validarGenero = function (genero) {
     //condicional: dependiendo del género es el contenido de las recomendaciones, 
     //              si pide un género que no esta en el array, mostrar error en consola
     if (!generos.includes(genero)) {
-        console.error("El género solicitado no está disponible");
+        console.error("El género solicitado no está disponible o es inválido");
         esValido = false;
     }
     return esValido;
 };
 
 // PASO 1: Pedir al usuario el género literario deseado
-let genero = prompt("Cuál género literario prefieres: " + generos.join(", ") + "?");
+let genero = prompt("Cuál género literario prefieres? \n" + generos.join(", ")) ?? "";
 console.log("Género seleccionado = " + genero);
 
 // convertir genero a minúsculas para realizar la comparación
