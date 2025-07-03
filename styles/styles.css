@@ -1,3 +1,8 @@
 body {
     background-color:palegoldenrod;
+    font-family: "Inter", sans-serif;
+}
+
+p {
+    font-weight: 300;
 }
