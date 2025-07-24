@@ -1,8 +1,106 @@
 body {
-    background-color:palegoldenrod;
+    background-color:#FAF8F8;
     font-family: "Inter", sans-serif;
+    font-weight: 300;
+    padding: 20px;
+    color: #4A5759;
 }
 
-p {
-    font-weight: 300;
+h1 {
+    text-align: center;
+    text-transform: uppercase;
+    color: #EDAFB8;
 }
+
+h2 {
+    text-align: center;
+}
+
+a {
+    color: #95B0B4;
+}
+
+input:invalid {
+    border: 1px dashed rgb(239, 84, 84);
+}
+
+.error {
+    color: rgb(239, 84, 84);
+    font-style: italic;
+    font-size: smaller;
+    padding: 5px;
+}
+
+.opciones {
+    padding: 20px;
+    border-bottom: 1px solid #E7E7E7;
+    margin-bottom: 25px;
+}
+
+.opciones section {
+    margin-bottom: 10px;
+}
+
+.opciones input, select {
+    padding: 5px;
+}
+
+#seleccion p {
+    text-align: center;
+    padding: 15px;
+    margin-bottom: 15px;
+}
+
+.enfasis {
+    font-style: italic;
+    font-weight: bold;
+}
+
+#resultados {
+    display: flex;
+    flex-flow: row;
+    flex-wrap: wrap;
+    justify-content: space-evenly;
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+/* cambiar por article? */
+.libro {
+    background-color: #fff;
+    min-width: 25vw;
+    max-width: 30vw;
+    text-align: center;
+    padding: 20px;
+}
+
+.titulo {
+    font-weight: bold;
+    font-size: larger;
+    text-transform: uppercase;
+}
+
+.autor {
+    font-style: italic;
+    color: #B6B1B2;
+}
+
+.url {
+    font-size: smaller;
+}
+
+img {
+    margin: auto;
+    height: auto;
+    max-width: 250px;
+    display: block;
+    margin-top: 10px;
+}
+
+/* .wishlistContainer {
+    border: 1px dashed #E7E7E7;
+    margin: auto;
+    width: 50vw;
+    text-align: center;
+    padding: 20px;
+} */
