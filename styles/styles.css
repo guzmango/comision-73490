@@ -24,6 +24,59 @@ input:invalid {
     border: 1px dashed rgb(239, 84, 84);
 }
 
+.contenido-index {
+    /* Layout de la sección principal usando Grids */
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(1, 1fr);
+    gap: 10px;
+}
+
+.contenido-index section {
+    padding: 40px;
+}
+
+.seccion-recs {
+    grid-column: span 3 / span 2;
+}
+
+.seccion-wishlist {
+    grid-column: span 1 / span 2;
+    text-align: center;
+    border: 1px dashed #B0C4B1;
+}
+
+.seccion-wishlist button {
+    padding: 5px;
+    display: block;
+    margin: 10px auto;
+    text-align: center;
+}
+
+#lblNombreUsuario {
+    color: #95B0B4;
+    font-style: italic;
+}
+
+#wishlist {
+    margin-top: 25px;
+}
+
+.wishlist-item {
+    padding: 10px;
+    background-color: #DEDBD2;
+    margin: 15px 0;
+    font-size: smaller;
+}
+
+.wishlist-titulo {
+    font-weight: bold;
+}
+
+.wishlist-autor {
+    font-style: italic;
+}
+
 .error {
     color: rgb(239, 84, 84);
     font-style: italic;
@@ -39,6 +92,8 @@ input:invalid {
 
 .opciones section {
     margin-bottom: 10px;
+    padding: 5px;
+    border: none;
 }
 
 .opciones input, select {
@@ -65,11 +120,10 @@ input:invalid {
     margin-bottom: 30px;
 }
 
-/* cambiar por article? */
 .libro {
     background-color: #fff;
-    min-width: 25vw;
-    max-width: 30vw;
+    min-width: 20vw;
+    max-width: 25vw;
     text-align: center;
     padding: 20px;
 }
@@ -87,20 +141,20 @@ input:invalid {
 
 .url {
     font-size: smaller;
+    display: block;
+    margin-bottom: 15px;
 }
 
 img {
     margin: auto;
     height: auto;
-    max-width: 250px;
+    max-width: 200px;
     display: block;
     margin-top: 10px;
 }
 
-/* .wishlistContainer {
-    border: 1px dashed #E7E7E7;
+.btn-wish {
+    display: block;
     margin: auto;
-    width: 50vw;
-    text-align: center;
-    padding: 20px;
-} */
+    padding: 5px;
+}
