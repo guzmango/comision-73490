@@ -12,139 +12,140 @@
     El botón "Borrar Usuario" elimina tanto el nombre de usuario como la lista de deseos del local storage.
 */
 
-const usuarioTxt = document.querySelector("#usuarioTxt");
-usuarioTxt.addEventListener("input", (e) => {
-    const errorUsuario = document.getElementById("errorUsuario");
-    if (!e.currentTarget.value) {
-        errorUsuario.textContent = "Por favor introduce tu nombre";
-        btnGuardarUsuario.disabled = true;
-    } else {
-        errorUsuario.textContent = "";
-        btnGuardarUsuario.disabled = false;
-    }
-});
+// DOM locators
+const userNameInput = document.getElementById("user-name-input");
+const userSaveButton = document.getElementById('user-save-button');
+const userDeleteButton = document.getElementById("user-delete-button");
+const userNameLabel = document.getElementById("user-name-label");
+const wishlistDeleteButton = document.querySelector('#wishlist-delete-button');
+
 
 //Verificar si existe usuario en local storage al cargar la página
 //Si existe el usuario, mostrar nombre en la sección Lista de Deseos 
 //y deshabilitar boton "Guardar Usuario"
-const nombreUsuario = localStorage.getItem('usuario');
-const lblNombreUsuario = document.querySelector("#lblNombreUsuario");
-if (nombreUsuario) {
-    lblNombreUsuario.textContent = nombreUsuario;
-    usuarioTxt.disabled = true;
+const username = localStorage.getItem('usuario');
+if (username) {
+    userNameLabel.textContent = username;
+    userNameInput.readOnly = true;
+    userSaveButton.disabled = true;
 } else {
-    lblNombreUsuario.textContent = "Invitado";
-    usuarioTxt.disabled = false;
+    userNameLabel.textContent = "Invitado";
+    userNameInput.readOnly = false;
+    userSaveButton.disabled = false;
 }
 
 //Verificar si existe una lista de deseos en local storage para mostrarla
 const wishlist = JSON.parse(localStorage.getItem('wishlist')) || [];
-dibujarWishlist(wishlist);
+displayWishlist(wishlist);
 
 //Verificar si existen recomendaciones guardadas en session storage al cargar la página
 const seleccionPrevia = JSON.parse(sessionStorage.getItem('seleccionPrevia')) || {};
 const recomendacionesPrevias = JSON.parse(sessionStorage.getItem("recomendacionesPrevias")) || [];
 if (seleccionPrevia && recomendacionesPrevias.length > 0) {
     //mostrar recomendaciones generadas previamente
-    mostrarSeleccion(seleccionPrevia, true);
-    mostrarRecomendaciones(recomendacionesPrevias);
+    displaySelectedOptions(seleccionPrevia, true);
+    displayBookSuggestions(recomendacionesPrevias);
 } else {
     //establecer estado default
-    limpiarSeleccion();
+    clearSelectedOptions();
 }
 
 //Deshabilitar botones agregar a wishlist si el libro ya existe en la lista de deseos
 //o si no existe un usuario guardado
 document.querySelectorAll('.btn-wish').forEach(boton => {
-    boton.disabled = wishlist.includes(boton.dataset.idLibro) || !nombreUsuario;
+    boton.disabled = wishlist.includes(boton.dataset.idLibro) || !username;
 });
 
-//  Event handler para guardar el nombre de usuario
-const btnGuardarUsuario = document.getElementById("btnGuardarUsuario");
-btnGuardarUsuario.addEventListener("click", (e) => {
-    //guardar nombre de usuario en local storage para conservarlo aún después de cerrar el navegador
-    // const usuarioTxt = document.getElementById("usuarioTxt");
-    const usuario = usuarioTxt.value;
+//  Save User Event handler
+userSaveButton.addEventListener('click', function() {
+    const userForm = document.querySelector("#user-form");
+    if (!userForm.checkValidity()) {
+        userForm.classList.add('was-validated');
+    } else {
+        //guardar nombre de usuario en local storage para conservarlo aún después de cerrar el navegador
+        const usuario = userNameInput.value;
 
-    localStorage.setItem('usuario', usuario);
-    document.getElementById("lblNombreUsuario").textContent = usuario;
+        localStorage.setItem('usuario', usuario);
+        userNameLabel.textContent = usuario;
 
-    //limpiar campos
-    btnGuardarUsuario.disabled = true;
-    usuarioTxt.value = "";
-    usuarioTxt.disabled = true;
+        //limpiar campos
+        userNameInput.readOnly = true;
+        userSaveButton.disabled = true;
 
-    //habilitar botones "Agregar a la lista de deseos"
-    document.querySelectorAll('.btn-wish').forEach(boton => {
-        boton.disabled = false;
-    });
+        //habilitar botones "Agregar a la lista de deseos"
+        document.querySelectorAll('.btn-wish').forEach(button => {
+            button.disabled = false;
+        });
+    }
 });
 
-//  Event handler para borrar el nombre de usuario
-document.getElementById("btnBorrarUsuario").addEventListener("click", (e) => {
+// Delete User event handler
+userDeleteButton.addEventListener("click", (e) => {
     localStorage.removeItem('usuario');
-    document.getElementById("lblNombreUsuario").textContent = "Invitado";
-    usuarioTxt.disabled = false;
+    userNameLabel.textContent = "Invitado";
+    userNameInput.value = "";
+    userNameInput.readOnly = false;
+    userSaveButton.disabled = false;
     limpiarWishlist();
 
-    document.querySelectorAll('.btn-wish').forEach(boton => {
-        boton.disabled = true;
+    document.querySelectorAll('.btn-wish').forEach(button => {
+        button.disabled = true;
     });
+});
+
+wishlistDeleteButton.addEventListener("click", (e) => {
+    limpiarWishlist();
 });
 
 //  Event handler para el formulario
-document.querySelector("#datosUsuario").addEventListener("submit", (e) => {
+document.querySelector("#suggestions-options-form").addEventListener("submit", (e) => {
     //evitar que la pagina se refresque
     e.preventDefault();
 
-    //limpiar sección de resultados
-    limpiarResultados();
+    //limpiar sección de recomendaciones
+    clearBookSuggestions();
 
     //obtener género seleccionado
-    const generoList = document.querySelector("#generoList");
-    const genero = generoList.value;
-    const generoText = generoList.options[generoList.selectedIndex].label;
+    const suggestionsGenreSelect = document.querySelector("#suggestions-genre-select");
+    const genre = suggestionsGenreSelect.value;
+    const genreText = suggestionsGenreSelect.options[suggestionsGenreSelect.selectedIndex].label;
     
     //obtener cantidad de recomendaciones
-    const cantRecs = parseInt(document.getElementById("numRecsTxt").value);
+    const qty = parseInt(document.getElementById("suggestions-qty-input").value);
 
     //guardar selección actual en session storage
-    let datos = { genero: generoText, cantidad: cantRecs };
-    sessionStorage.setItem('seleccionPrevia', JSON.stringify(datos));
+    let currentSelection = { genero: genreText, cantidad: qty };
+    sessionStorage.setItem('seleccionPrevia', JSON.stringify(currentSelection));
 
     // mostrar género seleccionado y cantidad de recomendaciones
-    mostrarSeleccion(datos);
+    displaySelectedOptions(currentSelection);
 
     // Filtrar libros por el género seleccionado
-    const libros = catalogoLibros.filter(libro => libro.genero === genero);
+    const booksByGenre = catalogoLibros.filter(book => book.genero === genre);
         
     // Determinar los libros que se recomendarán y mostrar una img del libro y los datos 
-    const recs = obtenerRecomendaciones(cantRecs, libros);
+    const bookSuggestions = getBookSuggestions(qty, booksByGenre);
     //guardar recomendaciones en session storage
-    sessionStorage.setItem('recomendacionesPrevias', JSON.stringify(recs));
+    sessionStorage.setItem('recomendacionesPrevias', JSON.stringify(bookSuggestions));
 
-    mostrarRecomendaciones(recs);
+    displayBookSuggestions(bookSuggestions);
 });
 
 //  Event handler para el botón "Limpiar" recomendaciones
-document.getElementById("btnBorrarRecs").addEventListener("click", (e) => {
-    limpiarSeleccion();
-    limpiarResultados();
+document.getElementById("suggestions-delete-button").addEventListener("click", (e) => {
+    clearSelectedOptions();
+    clearBookSuggestions();
 
     //limpiar session storage
     sessionStorage.removeItem('recomendacionesPrevias');
 });
 
-document.querySelector('#btnLimpiarWishlist').addEventListener("click", (e) => {
-    limpiarWishlist();
-});
-
-//  FUNCIONES
-function obtenerRecomendaciones(cantidad, catalogo) {
+//  FUNCTIONS
+function getBookSuggestions(cantidad, catalogo) {
     // bucle para obtener los libros recomendados aleatoriamente
     const recomendaciones = [];
     do {
-        let libro = catalogo[obtenerIndexAleatorio()];
+        let libro = catalogo[getRandomIndex()];
         //evitar incluir el mismo libro varias veces
         if (!recomendaciones.includes(libro)) {
             recomendaciones.push(libro);
@@ -153,66 +154,78 @@ function obtenerRecomendaciones(cantidad, catalogo) {
     return recomendaciones;
 }
 
-function obtenerIndexAleatorio() {
+function getRandomIndex() {
     //al usar floor, no incluimos el máximo en el resultado
     return Math.floor(Math.random() * 5);
 }
 
-function limpiarSeleccion() {
+function clearSelectedOptions() {
     //limpiar contenido y esconder elementos
-    const element = document.getElementById('seleccion');
+    const element = document.getElementById('selected-options-content');
     element.innerHTML = "";
     element.hidden = true;
 }
 
-function limpiarResultados() {
-    const element = document.getElementById('resultados');
+function clearBookSuggestions() {
+    const element = document.getElementById('suggestions-content');
     while (element.firstChild) {
         element.removeChild(element.firstChild);
     }
 }
 
-function mostrarSeleccion(datos, sesionPrevia = false) {
-    const seleccionDiv = document.getElementById('seleccion');
+function displaySelectedOptions(datos, sesionPrevia = false) {
+    const seleccionDiv = document.getElementById('selected-options-content');
     const palabra = datos.cantidad > 1 ? "recomendaciones" : "recomendación";
     seleccionDiv.hidden = false;
-    seleccionDiv.innerHTML = sesionPrevia ? `<p>Esta fue tu selección anterior: <span class="enfasis">${datos.cantidad}</span> ${palabra} del género <span class="enfasis">"${datos.genero}"</span>:</p>` :
-    `<p>Te mostramos <span class="enfasis">${datos.cantidad}</span> ${palabra} del género <span class="enfasis">"${datos.genero}"</span>:</p>`;
+    seleccionDiv.innerHTML = "";
+
+    if (sesionPrevia) {
+        seleccionDiv.innerHTML = `
+        <div class="alert alert-primary d-flex align-items-center" role="alert">
+            <svg class="bi flex-shrink-0 me-2" width="24" height="24" role="img" aria-label="Info:"><use xlink:href="#info-fill"/></svg>
+            <div>
+                Esta fue tu selección anterior: <span class="fw-bold">${datos.cantidad}</span> ${palabra} del género <span class="fw-bold">"${datos.genero}"</span>
+            </div>
+        </div>
+        `;
+    } else {
+        seleccionDiv.innerHTML = `
+        <div class="alert alert-success d-flex align-items-center" role="alert">
+            <svg class="bi flex-shrink-0 me-2" width="24" height="24" role="img" aria-label="Success:"><use xlink:href="#check-circle-fill"/></svg>
+            <div>
+                Te mostramos <span class="fw-bold">${datos.cantidad}</span> ${palabra} del género <span class="fw-bold">"${datos.genero}"</span>
+            </div>
+        </div>
+        `;
+    }
 }
 
-function mostrarRecomendaciones(recs) {
-    const resultados = document.getElementById("resultados");
+function displayBookSuggestions(recs) {
+    const suggestionsContent = document.getElementById("suggestions-content");
     recs.forEach(libro => {
-        const libroDiv = document.createElement("div");
-        libroDiv.className = "libro";
+        const bookCard = document.createElement("div");
+        bookCard.className = "col";
+        bookCard.innerHTML = `
+            <div class="card text-center pt-2 pb-2">
+                <img src="${libro.src}" class="card-img-top" alt="${libro.nombre}">
+                <div class="card-body">
+                    <h5 class="card-title">${libro.nombre}</h5>
+                    <h6 class="card-subtitle mb-2 text-muted text-capitalize fw-light">${libro.autor}</h6>
+                    <a href="${libro.url}" class="card-link d-block mb-2 link-underline link-underline-opacity-0 link-underline-opacity-75-hover"><small><i class="bi bi-share me-1"></i>Link</small></a>
+                    <p class="card-text">${libro.calificacion} <i class="bi bi-star"></i></p>
+                    <button id="btn_wish_${libro.id}" class="btn-wish btn btn-outline-secondary btn-sm" data-id-libro="${libro.id}" type="button"><i class="bi bi-heart-fill"></i> Add to Wishlist</button>
+                </div>
+            </div>
+        `;
+        suggestionsContent.appendChild(bookCard);
 
-        //agregar imagen para libro y distintos elementos para los datos
-        libroDiv.appendChild(crearTexto("titulo", libro.nombre));
-        libroDiv.appendChild(crearTexto("autor", libro.autor));
-        libroDiv.appendChild(crearPortada(libro.src, libro.nombre));
-        libroDiv.appendChild(crearTexto("ratingText", `${libro.calificacion} estrellas`));
-        libroDiv.appendChild(crearLink(libro.url));
-        libroDiv.appendChild(crearBotonWishlist(libro));
-
-        resultados.appendChild(libroDiv);
+        //add event listener to wishlist button
+        const btnWishlist = document.getElementById(`btn_wish_${libro.id}`);
+        btnWishlist.addEventListener("click", addBookToWishlist);
     });
 }
 
-function crearBotonWishlist(libro) {
-    const boton = document.createElement('button');
-    boton.innerText = "Agregar a Lista de Deseos";
-    boton.id = `btn_wish_${libro.id}`;
-    boton.className = 'btn-wish';
-    boton.dataset.idLibro = `${libro.id}`;
-    boton.addEventListener("click", agregarLibroWishlist);
-
-    const wishlist = JSON.parse(localStorage.getItem('wishlist')) || [];
-    const nombreUsuario = localStorage.getItem('usuario');
-    boton.disabled = wishlist.includes(boton.dataset.idLibro) || !nombreUsuario;
-    return boton;
-}
-
-function agregarLibroWishlist(e) {
+function addBookToWishlist(e) {
     const idLibro = e.currentTarget.dataset.idLibro;
     const wishlist = JSON.parse(localStorage.getItem('wishlist')) || [];
     if (!wishlist.includes(idLibro)) {
@@ -220,13 +233,13 @@ function agregarLibroWishlist(e) {
         wishlist.push(idLibro);
         //guardar array actualizado en localStorage
         localStorage.setItem('wishlist', JSON.stringify(wishlist));
-        dibujarWishlist(wishlist);
+        displayWishlist(wishlist);
     }
     //deshabilitar boton
     e.currentTarget.disabled = true;
 }
 
-function dibujarWishlist(wishlist = []) {
+function displayWishlist(wishlist = []) {
     const wishlistDiv = document.querySelector("#wishlist");
 
     if (wishlist.length === 0) {
@@ -235,15 +248,30 @@ function dibujarWishlist(wishlist = []) {
         wishlistDiv.innerHTML = "";
         wishlist.forEach(item => {
             const libro = catalogoLibros.find(l => l.id === item);
-            const elem = document.createElement('div');
-            elem.className = 'wishlist-item';
             //obtener nombre del género
-            let genero = [...document.querySelector("#generoList").options].find(opt => opt.value === libro.genero);
-            elem.innerHTML = `
-                <p><a href="${libro.url}"><span class="wishlist-titulo">${libro.nombre}</span></a>, <span class="wishlist-autor">${libro.autor}</span> 
-                (${genero.label})</p>
+            let genre = [...document.querySelector("#suggestions-genre-select").options].find(opt => opt.value === libro.genero);
+
+            const card = document.createElement('div');
+            card.classList.add('card', 'mb-3'); 
+            card.innerHTML = `
+                <div class="row g-0">
+                    <div class="col-md-3 pb-2 ps-2">
+                        <img src="${libro.src}" class="img-fluid rounded-start" alt="${libro.nombre}">
+                    </div>
+                    <div class="col-md-8">
+                        <div class="card-body text-start">
+                            <h5 class="card-title text-start">${libro.nombre}</h5>
+                            <p class="card-text"><small class="text-muted">${libro.autor}</small></p>
+                            <span class="badge bg-dark">${genre.label}</span>
+                            <button class="btn btn-light btn-sm"><i class="bi bi-trash3"></i></button>
+                        </div>
+                    </div>
+                </div>
             `;
-            wishlistDiv.appendChild(elem);
+            wishlistDiv.appendChild(card);
+
+            //TODO: add event handler to delete item button
+            // const btnDeleteBook = document.getElementById("")
         });
     }
 }
@@ -252,31 +280,9 @@ function limpiarWishlist() {
     //borrar wishlist del local storage
     localStorage.removeItem('wishlist');
     //remover elementos del DOM
-    dibujarWishlist();
+    displayWishlist();
     //habilitar botones "Agregar a lista de deseos"
     document.querySelectorAll('.btn-wish').forEach(boton => {
-        boton.disabled = !nombreUsuario;
+        boton.disabled = !username;
     });
-}
-
-function crearPortada(src, titulo) {
-    const img = document.createElement("img");
-    img.src = src;
-    img.alt = titulo;
-    return img;
-}
-
-function crearLink(url) {
-    const elem = document.createElement("a");
-    elem.href = url;
-    elem.className = "url";
-    elem.text = "Link";
-    return elem;
-}
-
-function crearTexto(clase, valor) {
-    const elem = document.createElement("p");
-    elem.className = clase;
-    elem.textContent = valor;
-    return elem;
 }
