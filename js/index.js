@@ -1,3 +1,7 @@
+const MAX_BOOKS = 100;
+const SEARCH_API_URL = "https://openlibrary.org/search.json?fields=key,title,author_name,cover_i,first_publish_year,first_sentence,ratings_average,ratings_count,subject&q=subject%3A_GENRE_+language%3Aeng&limit=100&sort=rating";
+const COVER_URL = "https://covers.openlibrary.org/b/id/_COVER_I_-M.jpg";
+
 // DOM locators
 const userNameInput = document.getElementById("user-name-input");
 const userSaveButton = document.getElementById('user-save-button');
@@ -5,42 +9,38 @@ const userDeleteButton = document.getElementById("user-delete-button");
 const userNameLabel = document.getElementById("user-name-label");
 const wishlistDeleteButton = document.querySelector('#wishlist-delete-button');
 
-const MAX_BOOKS = 100;
-const SEARCH_API_URL = "https://openlibrary.org/search.json?fields=key,title,author_name,cover_i,first_publish_year,first_sentence,ratings_average,ratings_count,subject&q=subject%3A_GENRE_+language%3Aeng&limit=100&sort=rating";
-const COVER_URL = "https://covers.openlibrary.org/b/id/_COVER_I_-M.jpg";
-
 /* -------------- DOM SETUP -------------- */
 
 //Hide spinner at initial load
 document.querySelector('.lds-spinner').style.display = "none";
 
-//Verificar si existe usuario en local storage al cargar la página
-//Si existe el usuario, mostrar nombre en la sección Lista de Deseos 
-//y deshabilitar boton "Guardar Usuario"
-const username = localStorage.getItem('usuario');
+//Verify if user exists in local storage when page is loaded
+//If it does, show the name on the Wishlist section
+//and disable button "Save Username" and text input 
+const username = localStorage.getItem('username');
 if (username) {
     userNameLabel.textContent = username;
     userNameInput.readOnly = true;
     userSaveButton.disabled = true;
 } else {
-    userNameLabel.textContent = "Invitado";
+    userNameLabel.textContent = "Guest";
     userNameInput.readOnly = false;
     userSaveButton.disabled = false;
 }
 
-//Verificar si existe una lista de deseos en local storage para mostrarla
+//Verify if a current wishlist exists on local storage and display it
 const wishlist = JSON.parse(localStorage.getItem('wishlist')) || [];
 displayWishlist(wishlist);
 
-//Verificar si existen recomendaciones guardadas en session storage al cargar la página
+//Verify if there are any previous suggestions saved in session storage when page is loaded
 const prevSelectedOptions = JSON.parse(sessionStorage.getItem('prevSelectedOptions')) || {};
 const prevSuggestions = JSON.parse(sessionStorage.getItem("prevSuggestions")) || [];
 if (prevSelectedOptions && prevSuggestions.length > 0) {
-    //mostrar recomendaciones generadas previamente
+    //show previous recommendations
     displaySelectedOptions(prevSelectedOptions, true);
     displayBookSuggestions(prevSuggestions);
 } else {
-    //establecer estado default
+    //set default status
     clearSelectedOptions();
 }
 
@@ -50,17 +50,17 @@ userSaveButton.addEventListener('click', function() {
     if (!userForm.checkValidity()) {
         userForm.classList.add('was-validated');
     } else {
-        //guardar nombre de usuario en local storage para conservarlo aún después de cerrar el navegador
-        const usuario = userNameInput.value;
+        //save username in local storage to keep it after browser is closed
+        const username = userNameInput.value;
 
-        localStorage.setItem('usuario', usuario);
-        userNameLabel.textContent = usuario;
+        localStorage.setItem('username', username);
+        userNameLabel.textContent = username;
 
-        //limpiar campos
+        //clear username fields
         userNameInput.readOnly = true;
         userSaveButton.disabled = true;
 
-        //habilitar botones "Agregar a la lista de deseos"
+        //enable "Add to wishlist" buttons
         document.querySelectorAll('.btn-wish').forEach(button => {
             button.disabled = false;
         });
@@ -69,7 +69,7 @@ userSaveButton.addEventListener('click', function() {
 
 // Delete User event handler
 userDeleteButton.addEventListener("click", (e) => {
-    localStorage.removeItem('usuario');
+    localStorage.removeItem('username');
     userNameLabel.textContent = "Invitado";
     userNameInput.value = "";
     userNameInput.readOnly = false;
@@ -87,43 +87,43 @@ wishlistDeleteButton.addEventListener("click", (e) => {
 
 //  Event handler para el formulario
 document.querySelector("#suggestions-options-form").addEventListener("submit", (e) => {
-    //evitar que la pagina se refresque
+    //avoid page refresh
     e.preventDefault();
 
     //clean selected options
     clearSelectedOptions();
 
-    //limpiar sección de recomendaciones
+    //clean recommendations section
     clearBookSuggestions();
 
     //load books from the REST API
     loadBooks();
 });
 
-//  Event handler para el botón "Limpiar" recomendaciones
+//  Event handler for "Clear" suggestions button
 document.getElementById("suggestions-delete-button").addEventListener("click", (e) => {
     clearSelectedOptions();
     clearBookSuggestions();
 
-    //limpiar session storage
+    //clear session storage
     sessionStorage.removeItem('prevSuggestions');
     sessionStorage.removeItem('prevSelectedOptions');
 });
 
 /* -------------- FUNCTIONS -------------- */
 function saveSelectedOptions() {
-    //obtener género seleccionado
+    //get selected genre
     const suggestionsGenreSelect = document.querySelector("#suggestions-genre-select");
     const genreText = suggestionsGenreSelect.options[suggestionsGenreSelect.selectedIndex].label;
     
-    //obtener cantidad de recomendaciones
+    //get suggestions quantity
     const qty = parseInt(document.getElementById("suggestions-qty-input").value);
 
-    //guardar selección actual en session storage
+    //save current selection in session storage
     let currentSelection = { genre: genreText, qty: qty };
     sessionStorage.setItem('prevSelectedOptions', JSON.stringify(currentSelection));
 
-    // mostrar género seleccionado y cantidad de recomendaciones
+    //display selected genre and suggestions quantity
     displaySelectedOptions(currentSelection);
 }
 
@@ -143,7 +143,7 @@ async function loadBooks() {
         
         const data = await response.json();
 
-        //obtener cantidad de recomendaciones
+        //get suggestions quantity
         const qty = parseInt(document.getElementById("suggestions-qty-input").value);
 
         //map property values (rating and book details)
@@ -153,10 +153,10 @@ async function loadBooks() {
             return {...current, selected_genre: genre, ratings_average: roundedRating};
         });
         
-        //guardar recomendaciones en session storage
+        //save book data matching current selection in session storage
         sessionStorage.setItem('prevSuggestions', JSON.stringify(bookSuggestions));
 
-        // Determinar los libros que se recomendarán y mostrar una img del libro y los datos 
+        //display book details and cover 
         displayBookSuggestions(bookSuggestions);
 
         //save selected options in session storage and display message
@@ -198,11 +198,11 @@ function showErrorAlert(message) {
 }
 
 function getBookSuggestions(qty, catalog) {
-    // bucle para obtener los libros recomendados aleatoriamente
+    // loop to get random book suggestions
     const suggestions = [];
     do {
         let book = catalog[getRandomIndex()];
-        //evitar incluir el mismo libro varias veces
+        //avoid duplicated references to the same book
         if (!suggestions.includes(book)) {
             suggestions.push(book);
         }
@@ -211,12 +211,12 @@ function getBookSuggestions(qty, catalog) {
 }
 
 function getRandomIndex() {
-    //al usar floor, no incluimos el máximo en el resultado
+    //when using floor, the max value is not included in the result
     return Math.floor(Math.random() * MAX_BOOKS);
 }
 
 function clearSelectedOptions() {
-    //limpiar contenido y esconder elementos
+    //clear content and hide elements
     const element = document.getElementById('selected-options-content');
     element.innerHTML = "";
     element.hidden = true;
@@ -231,7 +231,7 @@ function clearBookSuggestions() {
 
 function displaySelectedOptions(selectedOptions, previousSession = false) {
     const selectedOptionsContent = document.getElementById('selected-options-content');
-    const word = selectedOptions.qty > 1 ? "recomendaciones" : "recomendación";
+    const word = selectedOptions.qty > 1 ? "results" : "results";
     selectedOptionsContent.hidden = false;
     selectedOptionsContent.innerHTML = "";
 
@@ -240,7 +240,7 @@ function displaySelectedOptions(selectedOptions, previousSession = false) {
         <div class="alert alert-primary d-flex align-items-center" role="alert">
             <svg class="bi flex-shrink-0 me-2" width="24" height="24" role="img" aria-label="Info:"><use xlink:href="#info-fill"/></svg>
             <div>
-                Esta fue tu selección anterior: <span class="fw-bold">${selectedOptions.qty}</span> ${word} del género <span class="fw-bold">"${selectedOptions.genre}"</span>
+                This was your previous selection: <span class="fw-bold">${selectedOptions.qty}</span> ${word} from genre <span class="fw-bold">"${selectedOptions.genre}"</span>
             </div>
         </div>
         `;
@@ -249,7 +249,7 @@ function displaySelectedOptions(selectedOptions, previousSession = false) {
         <div class="alert alert-success d-flex align-items-center" role="alert">
             <svg class="bi flex-shrink-0 me-2" width="24" height="24" role="img" aria-label="Success:"><use xlink:href="#check-circle-fill"/></svg>
             <div>
-                Te mostramos <span class="fw-bold">${selectedOptions.qty}</span> ${word} del género <span class="fw-bold">"${selectedOptions.genre}"</span>
+                Showing <span class="fw-bold">${selectedOptions.qty}</span> ${word} from genre <span class="fw-bold">"${selectedOptions.genre}"</span>
             </div>
         </div>
         `;
@@ -301,8 +301,8 @@ function displayBookSuggestions(recs) {
         });
     });
 
-    //Deshabilitar botones agregar a wishlist si el libro ya existe en la lista de deseos
-    //o si no existe un usuario guardado
+    //Disable add to wishlist buttons if the book has already been added to the wishlist
+    //or if there is no saved username
     enableWishlistButtons();
 }
 
@@ -358,14 +358,14 @@ function addBookToWishlist(e) {
     const wishlist = JSON.parse(localStorage.getItem('wishlist')) || [];
 
     if (!wishlist.find(item => item.key === book.key)) {
-        //agregar libro por id en array solo si no existe previamente
+        //add book to the wishlist only if it hasn't been added previously
         wishlist.push(book);
-        //guardar array actualizado en localStorage
+        //save updated array in localStorage
         localStorage.setItem('wishlist', JSON.stringify(wishlist));
         displayWishlist(wishlist);
     }
 
-    //deshabilitar boton
+    //disable button
     e.currentTarget.disabled = true;
 
     //show sweet alert to confirm book was added to wishlist
@@ -382,13 +382,13 @@ function displayWishlist(wishlist = []) {
     if (wishlist.length === 0) {
         wishlistDiv.innerHTML = `
         <div class="alert alert-secondary" role="alert">
-            Aún no tienes libros guardados en tu Lista de Deseos
+            There are no books in your Wishlist
         </div>
         `;
     } else {
         wishlistDiv.innerHTML = "";
         wishlist.forEach(book => {
-            //obtener nombre del género
+            //get genre display name
             let genre = [...document.querySelector("#suggestions-genre-select").options].find(opt => opt.value === book.selected_genre);
             
             const card = document.createElement('div');
@@ -438,8 +438,8 @@ function removeBookFromWishlist(e) {
         confirmButtonText: "Yes, delete it!"
     }).then((result) => {
         if (result.isConfirmed) {
-            
             const wishlist = JSON.parse(localStorage.getItem('wishlist')) || [];
+            const username = localStorage.getItem('username');
             let index = wishlist.findIndex(book => book.key === bookId);
             if (index !== -1) {
                 wishlist.splice(index, 1);
@@ -465,6 +465,7 @@ function removeBookFromWishlist(e) {
 
 function enableWishlistButtons() {
     const wishlist = JSON.parse(localStorage.getItem('wishlist')) || [];
+    const username = localStorage.getItem('username');
     document.querySelectorAll('.btn-wish').forEach(button => {
         const bookIndex = wishlist.findIndex(book => book.key === JSON.parse(button.dataset.book).key);
         button.disabled = bookIndex > -1 || !username;
@@ -472,11 +473,11 @@ function enableWishlistButtons() {
 }
 
 function clearWishlist() {
-    //borrar wishlist del local storage
+    //remove wishlist from local storage
     localStorage.removeItem('wishlist');
-    //remover elementos del DOM
+    //remove wishlist items from DOM
     displayWishlist();
-    //habilitar botones "Agregar a lista de deseos"
+    //disable "Add to wishlist" buttons
     document.querySelectorAll('.btn-wish').forEach(boton => {
         boton.disabled = !username;
     });

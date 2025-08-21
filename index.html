@@ -21,25 +21,25 @@
         <div class="row gx-5">
             <div class="section-suggestions col-md-8">
                 <div class="p-3">
-                    <h1>Recomendaciones de libros</h1>
+                    <h1>Book Suggestions</h1>
                     <div class="options-container mb-4"> 
                         <form action="submit" id="suggestions-options-form" class="row g-3 mb-4">
                             <div class="col-md-6">
-                                <label for="suggestions-genre-select" class="form-label">¿Cuál género literario prefieres?</label>
+                                <label for="suggestions-genre-select" class="form-label">Preferred Genre</label>
                                 <select id="suggestions-genre-select" name="suggestions-genre-select" class="form-select">
                                     <option value="romance">Romance</option>
-                                    <option value="horror">Terror</option>
-                                    <option value="science-fiction">Ciencia Ficción</option>
-                                    <option value="fantasy">Fantasía</option>
+                                    <option value="horror">Horror</option>
+                                    <option value="science-fiction">Science Fiction</option>
+                                    <option value="fantasy">Fantasy</option>
                                 </select>
                             </div>
                             <div class="col-md-6">
-                                <label for="suggestions-qty-input" class="form-label">Cantidad de recomendaciones (Max: 50)</label>
+                                <label for="suggestions-qty-input" class="form-label">Number of Suggestions (Max: 50)</label>
                                 <input type="number" id="suggestions-qty-input" name="suggestions-qty-input" min="1" max="50" value="1" class="form-control" />
                             </div>
                             <div class="col-12 ">
-                                <input type="submit" class="btn btn-primary" id="suggestions-get-button" value="Obtener Recomendaciones" />
-                                <input type="button" class="btn btn-secondary" id="suggestions-delete-button" value="Limpiar" />
+                                <input type="submit" class="btn btn-primary" id="suggestions-get-button" value="Get Suggestions" />
+                                <input type="button" class="btn btn-secondary" id="suggestions-delete-button" value="Clear" />
                             </div>
                         </form>
                     </div>
@@ -66,8 +66,8 @@
             </div>
             <div class="section-wishlist col-md-4 border bg-light text-center">
                 <div class="p-3">
-                    <h3 class="text-capitalize">Bienvenido <span id="user-name-label" class="text-secondary fst-italic"></span></h3>
-                    <p>Guarda tu nombre de usuario para agregar recomendaciones a la lista de deseos.</p>
+                    <h3 class="text-capitalize">Welcome <span id="user-name-label" class="text-secondary fst-italic"></span></h3>
+                    <p>Save your username to add book recommendations to your wishlist.</p>
                 </div>
 
                 <form id="user-form" class="row g-3 needs-validation" novalidate>
@@ -78,28 +78,28 @@
                             <input type="text" class="form-control" id="user-name-input" aria-describedby="user-name-prepend" required>
                             
                             <div class="invalid-feedback">
-                                Por favor escoge un usuario.
+                                Please type a username.
                             </div>
                         </div>
                     </div>
 
                     <div class="mb-3 row">
                         <div class="col">
-                            <button id="user-save-button" class="btn btn-primary btn-sm" type="button">Guardar Usuario</button>
+                            <button id="user-save-button" class="btn btn-primary btn-sm" type="button">Save Username</button>
                         </div>
                         <div class="col">
-                            <button id="user-delete-button" class="btn btn-secondary btn-sm" type="button">Borrar Usuario</button>
+                            <button id="user-delete-button" class="btn btn-secondary btn-sm" type="button">Delete Username</button>
                         </div>
                     </div>
                     <div class="mb-3 row">
                         <div class="col">
-                            <button id="wishlist-delete-button" class="btn btn-secondary btn-sm" type="button">Limpiar Wishlist</button>
+                            <button id="wishlist-delete-button" class="btn btn-secondary btn-sm" type="button">Clear Wishlist</button>
                         </div>
                     </div>
                 </form>
                 
                 <hr>
-                <h2 class="pb-3">Lista de Deseos</h2>
+                <h2 class="pb-3">Wishlist</h2>
 
                 <div class="row mb-4">
                     <div id="wishlist"></div>
