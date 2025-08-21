@@ -1,17 +1,3 @@
-/*
-    Simulador de Recomendaciones de Libros
-
-    El usuario puede seleccionar el género literario y cuántos libros quiere que se le recomienden (de 1 a 5 libros aleatorios).
-    Al presionar el botón "Obtener Recomendaciones" se mostrará una lista de libros pertenecientes al género seleccionado.
-    Dichas recomendaciones se guardan en session storage, para borrarse una vez que se cierra el navegador.
-    El botón "Limpiar" elimina las recomendaciones del session storage.
-
-    También es posible guardar un nombre de usuario para poder agregar libros recomendados a la lista de deseos.
-    Tanto el nombre de usuario como la lista de deseos se guardan en local storage.
-    El botón "Limpiar Wishlist" borra la lista de deseos del local storage.
-    El botón "Borrar Usuario" elimina tanto el nombre de usuario como la lista de deseos del local storage.
-*/
-
 // DOM locators
 const userNameInput = document.getElementById("user-name-input");
 const userSaveButton = document.getElementById('user-save-button');
@@ -19,6 +5,14 @@ const userDeleteButton = document.getElementById("user-delete-button");
 const userNameLabel = document.getElementById("user-name-label");
 const wishlistDeleteButton = document.querySelector('#wishlist-delete-button');
 
+const MAX_BOOKS = 100;
+const SEARCH_API_URL = "https://openlibrary.org/search.json?fields=key,title,author_name,cover_i,first_publish_year,first_sentence,ratings_average,ratings_count,subject&q=subject%3A_GENRE_+language%3Aeng&limit=100&sort=rating";
+const COVER_URL = "https://covers.openlibrary.org/b/id/_COVER_I_-M.jpg";
+
+/* -------------- DOM SETUP -------------- */
+
+//Hide spinner at initial load
+document.querySelector('.lds-spinner').style.display = "none";
 
 //Verificar si existe usuario en local storage al cargar la página
 //Si existe el usuario, mostrar nombre en la sección Lista de Deseos 
@@ -39,22 +33,16 @@ const wishlist = JSON.parse(localStorage.getItem('wishlist')) || [];
 displayWishlist(wishlist);
 
 //Verificar si existen recomendaciones guardadas en session storage al cargar la página
-const seleccionPrevia = JSON.parse(sessionStorage.getItem('seleccionPrevia')) || {};
-const recomendacionesPrevias = JSON.parse(sessionStorage.getItem("recomendacionesPrevias")) || [];
-if (seleccionPrevia && recomendacionesPrevias.length > 0) {
+const prevSelectedOptions = JSON.parse(sessionStorage.getItem('prevSelectedOptions')) || {};
+const prevSuggestions = JSON.parse(sessionStorage.getItem("prevSuggestions")) || [];
+if (prevSelectedOptions && prevSuggestions.length > 0) {
     //mostrar recomendaciones generadas previamente
-    displaySelectedOptions(seleccionPrevia, true);
-    displayBookSuggestions(recomendacionesPrevias);
+    displaySelectedOptions(prevSelectedOptions, true);
+    displayBookSuggestions(prevSuggestions);
 } else {
     //establecer estado default
     clearSelectedOptions();
 }
-
-//Deshabilitar botones agregar a wishlist si el libro ya existe en la lista de deseos
-//o si no existe un usuario guardado
-document.querySelectorAll('.btn-wish').forEach(boton => {
-    boton.disabled = wishlist.includes(boton.dataset.idLibro) || !username;
-});
 
 //  Save User Event handler
 userSaveButton.addEventListener('click', function() {
@@ -86,7 +74,7 @@ userDeleteButton.addEventListener("click", (e) => {
     userNameInput.value = "";
     userNameInput.readOnly = false;
     userSaveButton.disabled = false;
-    limpiarWishlist();
+    clearWishlist();
 
     document.querySelectorAll('.btn-wish').forEach(button => {
         button.disabled = true;
@@ -94,7 +82,7 @@ userDeleteButton.addEventListener("click", (e) => {
 });
 
 wishlistDeleteButton.addEventListener("click", (e) => {
-    limpiarWishlist();
+    clearWishlist();
 });
 
 //  Event handler para el formulario
@@ -102,33 +90,14 @@ document.querySelector("#suggestions-options-form").addEventListener("submit", (
     //evitar que la pagina se refresque
     e.preventDefault();
 
+    //clean selected options
+    clearSelectedOptions();
+
     //limpiar sección de recomendaciones
     clearBookSuggestions();
 
-    //obtener género seleccionado
-    const suggestionsGenreSelect = document.querySelector("#suggestions-genre-select");
-    const genre = suggestionsGenreSelect.value;
-    const genreText = suggestionsGenreSelect.options[suggestionsGenreSelect.selectedIndex].label;
-    
-    //obtener cantidad de recomendaciones
-    const qty = parseInt(document.getElementById("suggestions-qty-input").value);
-
-    //guardar selección actual en session storage
-    let currentSelection = { genero: genreText, cantidad: qty };
-    sessionStorage.setItem('seleccionPrevia', JSON.stringify(currentSelection));
-
-    // mostrar género seleccionado y cantidad de recomendaciones
-    displaySelectedOptions(currentSelection);
-
-    // Filtrar libros por el género seleccionado
-    const booksByGenre = catalogoLibros.filter(book => book.genero === genre);
-        
-    // Determinar los libros que se recomendarán y mostrar una img del libro y los datos 
-    const bookSuggestions = getBookSuggestions(qty, booksByGenre);
-    //guardar recomendaciones en session storage
-    sessionStorage.setItem('recomendacionesPrevias', JSON.stringify(bookSuggestions));
-
-    displayBookSuggestions(bookSuggestions);
+    //load books from the REST API
+    loadBooks();
 });
 
 //  Event handler para el botón "Limpiar" recomendaciones
@@ -137,26 +106,113 @@ document.getElementById("suggestions-delete-button").addEventListener("click", (
     clearBookSuggestions();
 
     //limpiar session storage
-    sessionStorage.removeItem('recomendacionesPrevias');
+    sessionStorage.removeItem('prevSuggestions');
+    sessionStorage.removeItem('prevSelectedOptions');
 });
 
-//  FUNCTIONS
-function getBookSuggestions(cantidad, catalogo) {
+/* -------------- FUNCTIONS -------------- */
+function saveSelectedOptions() {
+    //obtener género seleccionado
+    const suggestionsGenreSelect = document.querySelector("#suggestions-genre-select");
+    const genreText = suggestionsGenreSelect.options[suggestionsGenreSelect.selectedIndex].label;
+    
+    //obtener cantidad de recomendaciones
+    const qty = parseInt(document.getElementById("suggestions-qty-input").value);
+
+    //guardar selección actual en session storage
+    let currentSelection = { genre: genreText, qty: qty };
+    sessionStorage.setItem('prevSelectedOptions', JSON.stringify(currentSelection));
+
+    // mostrar género seleccionado y cantidad de recomendaciones
+    displaySelectedOptions(currentSelection);
+}
+
+//Load books from Open Library REST API
+async function loadBooks() {
+    const suggestionsGenreSelect = document.querySelector("#suggestions-genre-select");
+    const genre = suggestionsGenreSelect.value;
+
+    //show spinner to indicate data is being loaded
+    document.querySelector('.lds-spinner').style.display = "block";
+
+    try {
+        const response = await fetch(`${SEARCH_API_URL.replace("_GENRE_", genre)}`);
+        if (!response.ok) {
+            throw new Error("Something went wrong!");
+        } 
+        
+        const data = await response.json();
+
+        //obtener cantidad de recomendaciones
+        const qty = parseInt(document.getElementById("suggestions-qty-input").value);
+
+        //map property values (rating and book details)
+        const mappedBooks = getBookSuggestions(qty, data.docs);
+        let bookSuggestions = mappedBooks.map((current) => {
+            let roundedRating = Number(current.ratings_average).toFixed(2);
+            return {...current, selected_genre: genre, ratings_average: roundedRating};
+        });
+        
+        //guardar recomendaciones en session storage
+        sessionStorage.setItem('prevSuggestions', JSON.stringify(bookSuggestions));
+
+        // Determinar los libros que se recomendarán y mostrar una img del libro y los datos 
+        displayBookSuggestions(bookSuggestions);
+
+        //save selected options in session storage and display message
+        saveSelectedOptions();
+
+    } catch (error) {
+        //show alert with error message
+        showErrorAlert(error.message);
+    } finally {
+        //hide spinner once the request is done
+        document.querySelector('.lds-spinner').style.display = "none";
+    }
+}
+
+function loadBookDetails(book) {
+    const genreList = book.subject.map(item => `<span class="badge bg-primary mb-1 me-1">${item}</span>`);
+    Swal.fire({
+        title: `<strong>${book.title}</strong>`,
+        html: `
+            <p>${book.first_sentence && book.first_sentence.length > 0 ? book.first_sentence[0] : ""}</p>
+            <p><strong>Autor:</strong> ${book.author_name.join(', ')}</p>
+            <p><strong>Publish Date:</strong> ${book.first_publish_year}</p>
+            <p><strong>Rating:</strong> ${book.ratings_average} <i class="bi bi-star"></i> <i>(${book.ratings_count} ratings)</i></p>
+            <h6>Subjects:</h6>
+            <p>${genreList.join('')}</p>
+        `,
+        imageUrl: getImageSrc(book.cover_i),
+        imageAlt: book.title,
+        showCloseButton: true
+    });
+}
+
+function showErrorAlert(message) {
+    Swal.fire({
+        icon: "error",
+        title: "Oops...",
+        text: message
+    });
+}
+
+function getBookSuggestions(qty, catalog) {
     // bucle para obtener los libros recomendados aleatoriamente
-    const recomendaciones = [];
+    const suggestions = [];
     do {
-        let libro = catalogo[getRandomIndex()];
+        let book = catalog[getRandomIndex()];
         //evitar incluir el mismo libro varias veces
-        if (!recomendaciones.includes(libro)) {
-            recomendaciones.push(libro);
+        if (!suggestions.includes(book)) {
+            suggestions.push(book);
         }
-    } while (recomendaciones.length < cantidad);
-    return recomendaciones;
+    } while (suggestions.length < qty);
+    return suggestions;
 }
 
 function getRandomIndex() {
     //al usar floor, no incluimos el máximo en el resultado
-    return Math.floor(Math.random() * 5);
+    return Math.floor(Math.random() * MAX_BOOKS);
 }
 
 function clearSelectedOptions() {
@@ -173,110 +229,249 @@ function clearBookSuggestions() {
     }
 }
 
-function displaySelectedOptions(datos, sesionPrevia = false) {
-    const seleccionDiv = document.getElementById('selected-options-content');
-    const palabra = datos.cantidad > 1 ? "recomendaciones" : "recomendación";
-    seleccionDiv.hidden = false;
-    seleccionDiv.innerHTML = "";
+function displaySelectedOptions(selectedOptions, previousSession = false) {
+    const selectedOptionsContent = document.getElementById('selected-options-content');
+    const word = selectedOptions.qty > 1 ? "recomendaciones" : "recomendación";
+    selectedOptionsContent.hidden = false;
+    selectedOptionsContent.innerHTML = "";
 
-    if (sesionPrevia) {
-        seleccionDiv.innerHTML = `
+    if (previousSession) {
+        selectedOptionsContent.innerHTML = `
         <div class="alert alert-primary d-flex align-items-center" role="alert">
             <svg class="bi flex-shrink-0 me-2" width="24" height="24" role="img" aria-label="Info:"><use xlink:href="#info-fill"/></svg>
             <div>
-                Esta fue tu selección anterior: <span class="fw-bold">${datos.cantidad}</span> ${palabra} del género <span class="fw-bold">"${datos.genero}"</span>
+                Esta fue tu selección anterior: <span class="fw-bold">${selectedOptions.qty}</span> ${word} del género <span class="fw-bold">"${selectedOptions.genre}"</span>
             </div>
         </div>
         `;
     } else {
-        seleccionDiv.innerHTML = `
+        selectedOptionsContent.innerHTML = `
         <div class="alert alert-success d-flex align-items-center" role="alert">
             <svg class="bi flex-shrink-0 me-2" width="24" height="24" role="img" aria-label="Success:"><use xlink:href="#check-circle-fill"/></svg>
             <div>
-                Te mostramos <span class="fw-bold">${datos.cantidad}</span> ${palabra} del género <span class="fw-bold">"${datos.genero}"</span>
+                Te mostramos <span class="fw-bold">${selectedOptions.qty}</span> ${word} del género <span class="fw-bold">"${selectedOptions.genre}"</span>
             </div>
         </div>
         `;
     }
 }
 
+function getImageSrc(coverId) {
+    return COVER_URL.replace("_COVER_I_", coverId);
+}
+
 function displayBookSuggestions(recs) {
     const suggestionsContent = document.getElementById("suggestions-content");
-    recs.forEach(libro => {
+    recs.forEach(book => {
         const bookCard = document.createElement("div");
         bookCard.className = "col";
         bookCard.innerHTML = `
-            <div class="card text-center pt-2 pb-2">
-                <img src="${libro.src}" class="card-img-top" alt="${libro.nombre}">
+            <div class="card text-center pb-2">
+                <img src="${getImageSrc(book.cover_i)}" class="card-img-top" alt="${book.title}">
                 <div class="card-body">
-                    <h5 class="card-title">${libro.nombre}</h5>
-                    <h6 class="card-subtitle mb-2 text-muted text-capitalize fw-light">${libro.autor}</h6>
-                    <a href="${libro.url}" class="card-link d-block mb-2 link-underline link-underline-opacity-0 link-underline-opacity-75-hover"><small><i class="bi bi-share me-1"></i>Link</small></a>
-                    <p class="card-text">${libro.calificacion} <i class="bi bi-star"></i></p>
-                    <button id="btn_wish_${libro.id}" class="btn-wish btn btn-outline-secondary btn-sm" data-id-libro="${libro.id}" type="button"><i class="bi bi-heart-fill"></i> Add to Wishlist</button>
+                    <h5 class="card-title">${book.title}</h5>
+                    <h6 class="card-subtitle mb-2 text-muted text-capitalize fw-light">${book.author_name}</h6>
+                    <span class="badge bg-light text-dark">${book.ratings_average} <i class="bi bi-star"></i></span>
+                    <button type="button" id="book_share_button_${book.key}" class="btn btn-light btn-sm" data-book-key="${book.key}">
+                        <span class="bi-box-arrow-up"></span>
+                    </button>
+                    <div class="d-grid gap-2 col-8 mx-auto">
+                        <button id="book_show_button_${book.key}" class="btn btn-link btn-sm text-reset mb-2" type="button">Show more<i class="bi bi-chevron-down ms-1"></i></button>
+                    </div>
+                    <button id="btn_wish_${book.key}" class="btn-wish btn btn-outline-secondary btn-sm" type="button"><i class="bi bi-heart-fill"></i> Add to Wishlist</button>
                 </div>
             </div>
         `;
+                    
         suggestionsContent.appendChild(bookCard);
 
         //add event listener to wishlist button
-        const btnWishlist = document.getElementById(`btn_wish_${libro.id}`);
+        const btnWishlist = document.getElementById(`btn_wish_${book.key}`);
+        btnWishlist.dataset.book = JSON.stringify(book);
         btnWishlist.addEventListener("click", addBookToWishlist);
+
+        //add event listener to share button
+        const btnShareBook = document.getElementById(`book_share_button_${book.key}`);
+        btnShareBook.addEventListener("click", openSharePopup);
+
+        //add event listener to show more button
+        const btnShowMore = document.getElementById(`book_show_button_${book.key}`);
+        btnShowMore.addEventListener("click", function() {
+            loadBookDetails(book);
+        });
+    });
+
+    //Deshabilitar botones agregar a wishlist si el libro ya existe en la lista de deseos
+    //o si no existe un usuario guardado
+    enableWishlistButtons();
+}
+
+function openSharePopup(e) {
+    let bookKey = e.currentTarget.dataset.bookKey;
+    let url = `https://openlibrary.org/${bookKey}`;
+    Swal.fire({
+        title: "Share",
+        html: `
+            <div class="d-grid gap-2 col-8 mx-auto">
+                <button type="button" id="book_copy_button_${bookKey}" class="btn btn-light btn-lg">
+                    <span class="bi-share me-2"></span>Copy Link
+                </button>
+                <button type="button" id="book_open_button_${bookKey}" class="btn btn-light btn-lg mb-2">
+                    <span class="bi bi-box-arrow-up-right me-2"></span>Open Link in New Tab
+                </button>
+            </div>
+        `,
+        showCloseButton: true,
+        showConfirmButton: false,
+        focusConfirm: false
+    });
+
+    //add event listener to buttons
+    const btnCopyLink = document.getElementById(`book_copy_button_${bookKey}`);
+    btnCopyLink.addEventListener("click", function() {
+        copyUrlToClipboard(url);
+    });
+    const btnOpenLink = document.getElementById(`book_open_button_${bookKey}`);
+    btnOpenLink.addEventListener("click", function() {
+        openUrl(url);
     });
 }
 
+async function copyUrlToClipboard(url) {
+    try {
+        await navigator.clipboard.writeText(url);
+        Toastify({
+            text: "Link copied to clipboard successfully!",
+            duration: 3000
+            }).showToast();
+    } catch(err) {
+        showErrorAlert(`Failed to copy text: ${err.message}`);
+    }
+}
+
+function openUrl(url) {
+    window.open(url, "_blank");
+}
+
 function addBookToWishlist(e) {
-    const idLibro = e.currentTarget.dataset.idLibro;
+    const book = JSON.parse(e.currentTarget.dataset.book);
     const wishlist = JSON.parse(localStorage.getItem('wishlist')) || [];
-    if (!wishlist.includes(idLibro)) {
+
+    if (!wishlist.find(item => item.key === book.key)) {
         //agregar libro por id en array solo si no existe previamente
-        wishlist.push(idLibro);
+        wishlist.push(book);
         //guardar array actualizado en localStorage
         localStorage.setItem('wishlist', JSON.stringify(wishlist));
         displayWishlist(wishlist);
     }
+
     //deshabilitar boton
     e.currentTarget.disabled = true;
+
+    //show sweet alert to confirm book was added to wishlist
+    Swal.fire({
+        title: 'Added to your wishlist',
+        icon: 'success',
+        confirmButtonText: 'Ok'
+    });
 }
 
 function displayWishlist(wishlist = []) {
     const wishlistDiv = document.querySelector("#wishlist");
 
     if (wishlist.length === 0) {
-        wishlistDiv.innerHTML = "Aún no tienes libros guardados en tu Lista de Deseos";
+        wishlistDiv.innerHTML = `
+        <div class="alert alert-secondary" role="alert">
+            Aún no tienes libros guardados en tu Lista de Deseos
+        </div>
+        `;
     } else {
         wishlistDiv.innerHTML = "";
-        wishlist.forEach(item => {
-            const libro = catalogoLibros.find(l => l.id === item);
+        wishlist.forEach(book => {
             //obtener nombre del género
-            let genre = [...document.querySelector("#suggestions-genre-select").options].find(opt => opt.value === libro.genero);
-
+            let genre = [...document.querySelector("#suggestions-genre-select").options].find(opt => opt.value === book.selected_genre);
+            
             const card = document.createElement('div');
-            card.classList.add('card', 'mb-3'); 
+            card.classList.add('card', 'mb-3');
             card.innerHTML = `
                 <div class="row g-0">
-                    <div class="col-md-3 pb-2 ps-2">
-                        <img src="${libro.src}" class="img-fluid rounded-start" alt="${libro.nombre}">
+                    <div class="col-md-3">
+                        <img src="${getImageSrc(book.cover_i)}" class="img-fluid rounded-start" alt="${book.title}">
                     </div>
                     <div class="col-md-8">
                         <div class="card-body text-start">
-                            <h5 class="card-title text-start">${libro.nombre}</h5>
-                            <p class="card-text"><small class="text-muted">${libro.autor}</small></p>
-                            <span class="badge bg-dark">${genre.label}</span>
-                            <button class="btn btn-light btn-sm"><i class="bi bi-trash3"></i></button>
+                            <h6 class="card-title text-start">${book.title}</h6>
+                            <span class="card-text"><small class="text-muted">${book.author_name}</small></span>
+                            <span class="badge bg-dark ms-1">${genre.label}</span><br/>
+                            <button id="wish_show_button_${book.key}" class="btn btn-link btn-sm text-reset mt-2 ps-0" type="button">Show more<i class="bi bi-chevron-down ms-1"></i></button>
+                            <button id="wish_delete_button_${book.key}" class="btn btn-light btn-sm mt-2" data-key="${book.key}"><i class="bi bi-trash3"></i></button><br/>
                         </div>
                     </div>
                 </div>
             `;
             wishlistDiv.appendChild(card);
 
-            //TODO: add event handler to delete item button
-            // const btnDeleteBook = document.getElementById("")
+            //add event handler to delete book from wishlist
+            const btnDeleteBook = document.getElementById(`wish_delete_button_${book.key}`);
+            btnDeleteBook.addEventListener("click", removeBookFromWishlist);
+
+            //add event listener to show more button
+            const btnShowMore = document.getElementById(`wish_show_button_${book.key}`);
+            btnShowMore.addEventListener("click", function() {
+                loadBookDetails(book);
+            });
         });
     }
 }
 
-function limpiarWishlist() {
+function removeBookFromWishlist(e) {
+    const bookId = e.currentTarget.dataset.key;
+
+    //show alert to confirm if book should be removed from wishlist
+    Swal.fire({
+        title: "Are you sure?",
+        text: "The book will be permanently removed from your wishlist.",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#3085d6",
+        cancelButtonColor: "#d33",
+        confirmButtonText: "Yes, delete it!"
+    }).then((result) => {
+        if (result.isConfirmed) {
+            
+            const wishlist = JSON.parse(localStorage.getItem('wishlist')) || [];
+            let index = wishlist.findIndex(book => book.key === bookId);
+            if (index !== -1) {
+                wishlist.splice(index, 1);
+                //update wishlist in local storage and display it again
+                localStorage.setItem('wishlist', JSON.stringify(wishlist));
+                displayWishlist(wishlist);
+
+                //show confirmation message
+                Swal.fire({
+                    title: "Deleted!",
+                    text: "The book has been deleted from your wishlist.",
+                    icon: "success"
+                });
+
+                //change add to wishlist button disabled attribute if available
+                const addButton = document.getElementById(`btn_wish_${bookId}`);
+                if (addButton)
+                    addButton.disabled = !username;
+            }
+        }
+    });
+}
+
+function enableWishlistButtons() {
+    const wishlist = JSON.parse(localStorage.getItem('wishlist')) || [];
+    document.querySelectorAll('.btn-wish').forEach(button => {
+        const bookIndex = wishlist.findIndex(book => book.key === JSON.parse(button.dataset.book).key);
+        button.disabled = bookIndex > -1 || !username;
+    });
+}
+
+function clearWishlist() {
     //borrar wishlist del local storage
     localStorage.removeItem('wishlist');
     //remover elementos del DOM
