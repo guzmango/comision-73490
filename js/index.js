@@ -1,4 +1,5 @@
 const MAX_BOOKS = 100;
+const GUEST_WORD = "Guest";
 const SEARCH_API_URL = "https://openlibrary.org/search.json?fields=key,title,author_name,cover_i,first_publish_year,first_sentence,ratings_average,ratings_count,subject&q=subject%3A_GENRE_+language%3Aeng&limit=100&sort=rating";
 const COVER_URL = "https://covers.openlibrary.org/b/id/_COVER_I_-M.jpg";
 
@@ -23,7 +24,7 @@ if (username) {
     userNameInput.readOnly = true;
     userSaveButton.disabled = true;
 } else {
-    userNameLabel.textContent = "Guest";
+    userNameLabel.textContent = GUEST_WORD;
     userNameInput.readOnly = false;
     userSaveButton.disabled = false;
 }
@@ -70,7 +71,7 @@ userSaveButton.addEventListener('click', function() {
 // Delete User event handler
 userDeleteButton.addEventListener("click", (e) => {
     localStorage.removeItem('username');
-    userNameLabel.textContent = "Invitado";
+    userNameLabel.textContent = GUEST_WORD;
     userNameInput.value = "";
     userNameInput.readOnly = false;
     userSaveButton.disabled = false;
