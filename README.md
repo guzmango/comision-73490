@@ -1,7 +1,6 @@
 # Book Suggestions
 
->"Books are a uniquely portable magic"
-- Stephen King
+>"Books are a uniquely portable magic" - Stephen King
 
 ## How to Use
 The user can select the desired literary genre and how many book recommendations they want to see (from 1 to 50 random books).
